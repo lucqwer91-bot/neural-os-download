@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:">
+<title>NEURAL OS</title>
+</head>
+<body>
+
+<canvas id="scene" aria-label="3D brain"></canvas>
+<div id="vig" aria-hidden="true"></div>
+<div id="frame" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></div>
+
+<div id="status" role="status">
+  <span class="brand"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8 17.1 5.9v8.2L10 18.2 2.9 14.1V5.9z"/><circle cx="10" cy="10" r="2.2"/><path d="M10 7.8V3.6M11.9 11.1l3.6 2.1M8.1 11.1l-3.6 2.1"/></svg><span>NEURAL OS</span></span>
+  <span class="demo-badge" data-i="demo">DEMO DATA</span>
+  <span class="cells glass">
+    <span class="item"><span class="dot"></span><span data-i="monitoring">Monitoring</span></span>
+    <span class="item hide-s" id="st-sessions"></span>
+    <span class="item hide-s" id="st-conn"></span>
+    <span class="item hide-s" id="st-lib"></span>
+  </span>
+  <span class="spacer"></span>
+  <span class="view glass" id="st-view"></span>
+</div>
+
+<nav id="dock" class="glass" aria-label="Modules"></nav>
+
+<div id="hints">
+  <span><kbd>Drag</kbd> <span data-i="h_rotate">rotate</span></span>
+  <span><kbd>Wheel</kbd> <span data-i="h_zoom">zoom / fly inside</span></span>
+  <span><kbd>Ctrl K</kbd> <span data-i="h_cmd">search</span></span>
+  <span><kbd>R</kbd> <span data-i="h_reset">reset</span></span>
+</div>
+<div id="camctl" class="glass">
+  <button id="b-labels" type="button" data-i="labels">Labels</button>
+  <button id="b-pause" type="button"></button>
+  <button id="b-reset" type="button" data-i="reset">Reset view</button>
+</div>
+
+<div id="tip" class="glass"></div>
+<svg id="lead" aria-hidden="true"></svg>
+<div id="labels"></div>
+<div id="overlays"></div>
+
+<div id="pal" hidden>
+  <div class="box glass" role="dialog" aria-label="Command palette">
+    <input id="pal-in" autocomplete="off" spellcheck="false">
+    <div class="res" id="pal-res"></div>
+  </div>
+</div>
+
+<div id="focus" hidden>
+  <div class="paper">
+    <div class="top"><span id="focus-path" class="mono"></span><button class="btn" id="focus-close" type="button" data-i="exitFocus">Exit focus mode</button></div>
+    <textarea id="focus-ta" aria-label="Note editor"></textarea>
+  </div>
+</div>
+
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+{
+  "name": "neural-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NEURAL OS: local knowledge workspace and live view of Claude Code activity",
+  "main": "out/main/index.js",
+  "scripts": {
+    "postinstall": "node node_modules/electron/install.js || echo Electron download skipped, run: node node_modules/electron/install.js",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "npm run build && playwright test --trace off",
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.4.299"
+  },
+  "devDependencies": {
+    "@fontsource/jetbrains-mono": "^5.2.5",
+    "@fontsource/manrope": "^5.2.5",
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.0",
+    "@types/three": "^0.180.0",
+    "electron": "45.3.3",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "6.0.0",
+    "katex": "0.16.22",
+    "mermaid": "11.12.0",
+    "three": "0.187.0",
+    "typescript": "^5.7.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.0"
+  },
+  "author": "NEURAL OS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lucqwer91-bot/neural-os-download"
+  }
+}

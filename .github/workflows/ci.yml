@@ -1,0 +1,41 @@
+name: CI
+# Every push: Linux only (cheapest Actions minutes). Windows and macOS on demand:
+# Actions → CI → Run workflow (macOS minutes count ten times on private repositories).
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      all:
+        description: Also test on Windows and macOS
+        type: boolean
+        default: true
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.all && '["ubuntu-latest","windows-latest","macos-latest"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Electron smoke test (Linux needs a virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npx playwright test --trace off
+      - name: Electron smoke test
+        if: runner.os != 'Linux'
+        run: npx playwright test --trace off
+      - name: Keep test results of a failed smoke test
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ matrix.os }}
+          path: test-results
+          retention-days: 7

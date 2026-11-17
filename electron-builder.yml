@@ -1,0 +1,44 @@
+# Installers: Windows (.exe, installs per user, no admin needed) and macOS (.dmg, Intel + Apple Silicon).
+# Built on GitHub Actions (.github/workflows/package.yml). Not code-signed yet: Windows SmartScreen and
+# macOS Gatekeeper ask once (see README, "Install").
+appId: app.neuralos.desktop
+productName: NEURAL OS
+copyright: NEURAL OS
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+  # pdfjs-dist (PDF text): only the legacy Node build is used
+  - "!node_modules/pdfjs-dist/build/**"
+  - "!node_modules/pdfjs-dist/web/**"
+  - "!node_modules/pdfjs-dist/**/*.map"
+  # its optional canvas (native, per platform) is only for drawing pages; text works without it
+  - "!node_modules/@napi-rs/**"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+  artifactName: NEURAL-OS-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: NEURAL OS
+mac:
+  target:
+    - target: dmg
+      arch: [universal]
+  icon: build/icon.png
+  category: public.app-category.productivity
+  identity: "-"          # ad-hoc signature (required on Apple Silicon); not notarized
+  hardenedRuntime: false
+  artifactName: NEURAL-OS-${version}-mac.${ext}
+dmg:
+  title: NEURAL OS
+publish: null
