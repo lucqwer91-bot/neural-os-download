@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readdirSync, readSync, renameSync, statSync, writeFileSync, readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, join, posix, win32 } from 'node:path'
 import type { Db } from '../library/db'
 
 // Device sync (user decision 2026-11-17: "Über deinen Cloud-Ordner"). NEURAL OS uploads nothing itself:
@@ -223,6 +223,8 @@ export function setFolder(db: Db, folder: string | null): void {
 /** Known cloud folders on this computer (existence checks of the usual places only). */
 export function cloudFolders(platform: string, home: string, env: Record<string, string | undefined>, exists: (p: string) => boolean = existsSync, list: (p: string) => string[] = (p) => { try { return readdirSync(p) } catch { return [] } }): { kind: string; path: string }[] {
   const out: { kind: string; path: string }[] = []
+  // paths of the platform asked about, not of the computer running this (tests run every case everywhere)
+  const join = platform === 'win32' ? win32.join : posix.join
   const add = (kind: string, p: string | null | undefined) => { if (p && exists(p) && !out.some((o) => o.path === p)) out.push({ kind, path: p }) }
   if (platform === 'darwin') {
     const cs = join(home, 'Library', 'CloudStorage')
