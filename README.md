@@ -4,6 +4,8 @@
 <p align="center"><b>Das Langzeitgedächtnis deiner KI.</b><br>Deine Notizen als 3D-Gehirn, und du siehst live, was Claude Code damit macht.</p>
 <p align="center"><a href="../../releases/latest"><b>⬇ Kostenlos herunterladen (Windows / macOS)</b></a> · Open Source (MIT) · <a href="#english">English</a></p>
 
+<p align="center"><img src="docs/img/demo.gif" width="720" alt="NEURAL OS mit Demodaten: das 3D-Gehirn dreht sich, rechts der Live-Monitor"><br><sub>Mit Demodaten (oben links als „Demo data“ gekennzeichnet).</sub></p>
+
 ---
 
 ## Was ist das?
