@@ -536,3 +536,40 @@ svg.cv marker path{fill:rgba(231,234,238,.75)}
 .gr .chip{text-transform:none;letter-spacing:0;font-family:var(--mono,monospace)}
 #syncnm{box-sizing:border-box;font:12px/1.4 var(--f-ui);background:rgba(0,0,0,.25);color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:5px 8px;margin-right:6px;outline:none}
 #syncnm:focus{border-color:rgba(255,255,255,.35)}
+/* files module (file explorer) */
+.fstree{margin:2px 0 10px;font-size:12.5px}
+.fstree .ft{display:flex;align-items:center;gap:6px;min-height:24px;padding-right:4px;border-radius:5px;cursor:default;color:var(--chrome)}
+.fstree .ft:hover{background:rgba(255,255,255,.05)}
+.fstree .ft.sel{background:rgba(255,255,255,.09);color:#fff}
+.fstree .ft.drop{outline:1px dashed var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.fstree .ft.root{font-weight:600;color:#fff}
+.fstree .car{width:10px;color:var(--silver);font-size:10px}
+.fstree .fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.fstree .ft small{color:var(--silver);font-family:var(--f-data);font-size:10px}
+.fstree .fst{display:none;gap:2px}
+.fstree .ft:hover .fst,.fstree .ft:focus-within .fst{display:inline-flex}
+.fstree .fst button{background:none;border:0;color:var(--silver);cursor:pointer;padding:1px 4px;border-radius:4px;font-size:11px}
+.fstree .fst button:hover{color:#fff;background:rgba(255,255,255,.08)}
+.fsren{flex:1;min-width:0;font:inherit;color:#fff;background:rgba(0,0,0,.35);border:1px solid var(--ok);border-radius:4px;padding:1px 5px}
+.fsnote{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--chrome);margin-bottom:8px}
+/* note tabs and split */
+.ntabs{display:flex;align-items:center;gap:2px;margin:-4px 0 10px;border-bottom:1px solid rgba(231,234,238,.08);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+.ntabs .btn{flex-shrink:0}
+.ntabs .sp{flex:1}
+.ntab{display:inline-flex;align-items:center;gap:4px;padding:5px 4px 5px 9px;font-size:11.5px;color:var(--silver);border-bottom:1px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+.ntab:hover{color:var(--chrome)}
+.ntab.on{color:var(--white);border-bottom-color:var(--white)}
+.ntab button{background:none;border:0;color:inherit;opacity:.5;cursor:pointer;font-size:12px;padding:0 3px;border-radius:3px}
+.ntab button:hover{opacity:1;background:rgba(255,255,255,.08)}
+.ntabs .btn{margin:0 0 3px 6px}
+/* hover preview */
+#hov{position:fixed;z-index:60;max-height:min(340px,50vh);overflow:auto;padding:12px 14px;border-radius:10px;font-size:12.5px;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+#hov .hh{font-family:var(--f-data);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--silver);margin-bottom:6px}
+#hov .rcontent{max-height:none}
+.btn.sm.on{color:var(--warn)}
+/* properties editor */
+.propsw{margin:0 0 8px}
+.props{margin-top:6px;display:flex;flex-direction:column;gap:4px}
+.prow{display:grid;grid-template-columns:minmax(80px,35%) 1fr auto;gap:4px;align-items:center}
+.prow .inp{padding:4px 7px;font-size:12px}
+.prow .pk{color:var(--silver)}

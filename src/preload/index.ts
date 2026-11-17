@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('neuralOS', {
     mentions: (id: string) => ipcRenderer.invoke('lib:mentions', id),
     linkMention: (fromId: string, targetId: string) => ipcRenderer.invoke('lib:linkMention', fromId, targetId),
     rename: (id: string, name: string) => ipcRenderer.invoke('lib:rename', id, name),
+    example: (lang: string) => ipcRenderer.invoke('lib:example', lang),
+    pdf: (name: string, html: string) => ipcRenderer.invoke('lib:pdf', name, html),
+    attach: (id: string, name: string, data: ArrayBuffer) => ipcRenderer.invoke('lib:attach', id, name, new Uint8Array(data)),
     tags: () => ipcRenderer.invoke('lib:tags'),
     base: (id: string) => ipcRenderer.invoke('lib:base', id),
     daily: (lang: string) => ipcRenderer.invoke('lib:daily', lang),
@@ -53,6 +56,16 @@ contextBridge.exposeInMainWorld('neuralOS', {
       ipcRenderer.on('lib:progress', h)
       return () => ipcRenderer.removeListener('lib:progress', h)
     }
+  },
+  // file explorer (only linked folders with editing on)
+  files: {
+    tree: () => ipcRenderer.invoke('fs:tree'),
+    newNote: (folderId: string, dir: string, name: string) => ipcRenderer.invoke('fs:newNote', folderId, dir, name),
+    newFolder: (folderId: string, dir: string, name: string) => ipcRenderer.invoke('fs:newFolder', folderId, dir, name),
+    move: (folderId: string, rel: string, toDir: string, newName?: string) => ipcRenderer.invoke('fs:move', folderId, rel, toDir, newName),
+    moveFile: (id: string, toDir: string, newName?: string) => ipcRenderer.invoke('fs:moveFile', id, toDir, newName),
+    trash: (folderId: string, rel: string) => ipcRenderer.invoke('fs:trash', folderId, rel),
+    untrash: (folderId: string, trash: string, rel: string) => ipcRenderer.invoke('fs:untrash', folderId, trash, rel)
   },
   // shareable brains (.brain files)
   brains: {

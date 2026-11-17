@@ -21,6 +21,8 @@ import { GROUP_BY, assignColors, groupOf, groupColor, groupCounts, isNone, histo
 import { mulberry } from "../lib/random.js";
 import { setupSteps, setupProgress, TRIED_KEY, PICK_KEY, GOALS, readPick } from "../ui/setup.js";
 import { esc } from "../lib/text.js";
+import { parseProps, serializeProps, propsBlock } from "../ui/props.js";
+import { FS as FT, filesBody, splitKey, parentOf as fsParent, baseOf as fsBase } from "../ui/files.js";
 import * as SH from "../brain/shaders.js";
 import { REG, CORDZ, buildBrain } from "../brain/geometry.js";
 import { SPZ, buildNerveData } from "../brain/nerves.js";
@@ -494,7 +496,7 @@ function wireOv(el,m){
     const L=e.target.closest("[data-lang]");if(L){setLang(L.dataset.lang);return;}
     const g=e.target.closest("[data-tog]");if(g){st[g.dataset.tog]=g.dataset.v==="1";if(g.dataset.tog==="privacy"){privMap.clear();refreshAll();}fill("settings");dirty=true;}});
 }
-const OV=createOverlays({root:ovRoot,codeOf:m=>String(Math.max(0,DOCK.filter(d=>d!=="|").indexOf(m))+1).padStart(2,"0"),
+const OV=createOverlays({root:ovRoot,leftSide:["files"],max:4,codeOf:m=>String(Math.max(0,DOCK.filter(d=>d!=="|").indexOf(m))+1).padStart(2,"0"),
   titleOf:m=>t(MODT[m]),bodyOf:m=>BODY[m](),onChange:()=>{markDock();if(!open.has("rnode"))setFocus(false);},onCreate:wireOv,onFill:(b,m)=>{hydrate(b,m);if(m==="rnode"&&pendingHead&&scrollToHead(b,pendingHead))pendingHead=null;}});
 const open=OV.open,openOv=OV.openOv,fill=OV.fill,refreshOv=OV.refresh,refreshAll=OV.refreshAll,closeOv=OV.close;
 
@@ -636,7 +638,7 @@ doHover=function(){const fh=FB.brains.length?FB.pick(new THREE.Vector2(mouse.x/i
   _doHover();};
 const _clickAt=clickAt;
 clickAt=function(x,y){const fh=FB.brains.length?FB.pick(new THREE.Vector2(x/innerWidth*2-1,-(y/innerHeight)*2+1)):null;if(fh){openForeign(fh);return;}const rn=REAL.pick(camera,new THREE.Vector2(x/innerWidth*2-1,-(y/innerHeight)*2+1));if(rn>=0){openReal(rn);return;}const n=pickNode(x,y);if(n>=0){openNode(n);return;}_clickAt(x,y);};
-function openReal(i){const C=REAL.nodes[i];if(C&&C.kind==="cluster"){REAL.setOpen(C.key,true);applyFormFade&&applyFormFade();REAL.setLinks(st.links);i=REAL.nodes.findIndex(n=>n.kind==="project"&&n.project===C.key);if(i<0)i=REAL.nodes.findIndex(n=>n.row&&(n.row.project||"")===C.key);toast(tf("clusterOpened",{p:nm(C.key||t("noProject"),"p"),n:C.count.toLocaleString()}));}curReal=i;REAL.pulse(i);dirty=true;if(open.has("rnode"))fill("rnode");else openOv("rnode");}
+function openReal(i){const C=REAL.nodes[i];if(C&&C.kind==="cluster"){REAL.setOpen(C.key,true);applyFormFade&&applyFormFade();REAL.setLinks(st.links);i=REAL.nodes.findIndex(n=>n.kind==="project"&&n.project===C.key);if(i<0)i=REAL.nodes.findIndex(n=>n.row&&(n.row.project||"")===C.key);toast(tf("clusterOpened",{p:nm(C.key||t("noProject"),"p"),n:C.count.toLocaleString()}));}curReal=i;tabPush(REAL.nodes[i]);REAL.pulse(i);dirty=true;if(open.has("rnode"))fill("rnode");else openOv("rnode");}
 function openForeign(h){const N=h.node;if(N.kind==="cluster"){FB.openCluster(h);toast(tf("clusterOpened",{p:N.key||t("noProject"),n:N.count.toLocaleString()}));dirty=true;return;}
   curB=N.row?{brain:h.brain.id,fid:N.row.fid}:{brain:h.brain.id,project:N.project||""};FB.pulse(h);dirty=true;if(open.has("bnode"))fill("bnode");else openOv("bnode");}
 function flyBrain(k){const c=FB.worldCenter(k);if(!c)return;goal.target.copy(c);goal.r=Math.min(Math.max(goal.r,2.2),3);lastInteract=performance.now();dirty=true;wake();}
@@ -733,8 +735,37 @@ function libRows(L){return L.map(i=>`<div class="row" data-libi="${i}" style="cu
 
 /* ---------- node details ---------- */
 
+/* ---------- tabs (open notes, like Obsidian) and a second panel beside it (split view, read-only preview) ---------- */
+const TABS={ids:[],pin:null};const TAB_MAX=12;
+try{const s=JSON.parse(localStorage.getItem("nos-tabs")||"null");if(s&&Array.isArray(s.ids))TABS.ids=s.ids.slice(0,TAB_MAX);}catch(e){}
+function tabSave(){try{localStorage.setItem("nos-tabs",JSON.stringify({ids:TABS.ids}));}catch(e){}}
+function tabPush(N){if(!N||!N.row)return;const id=N.row.id;if(TABS.ids.includes(id))return;const cur=REAL.nodes[curReal],at=TABS.ids.indexOf(cur&&cur.row?cur.row.id:"");
+  TABS.ids.splice(at>=0?at+1:TABS.ids.length,0,id);while(TABS.ids.length>TAB_MAX)TABS.ids.splice(TABS.ids[0]===id?1:0,1);tabSave();}
+function tabBar(curId,byId){const ids=TABS.ids.filter(id=>byId.has(id));if(ids.length!==TABS.ids.length){TABS.ids=ids;tabSave();}if(ids.length<2&&!TABS.pin)return `<div class="ntabs"><span class="sp"></span>${splitBtn(curId)}</div>`;
+  const lab=n=>{n=nm(n,"f").replace(/\.(md|txt)$/i,"");return esc(n.length>22?n.slice(0,21)+"…":n);};
+  return `<div class="ntabs" role="tablist">${ids.map(id=>`<span class="ntab${id===curId?" on":""}" role="tab" aria-selected="${id===curId}" data-tab="${esc(id)}" title="${esc(nm(byId.get(id).name,"f"))}">${lab(byId.get(id).name)}<button type="button" data-x="tabx:${esc(id)}" aria-label="${esc(t("tabClose"))}">×</button></span>`).join("")}<span class="sp"></span>${splitBtn(curId)}</div>`;}
+const splitBtn=id=>`<button class="btn sm" type="button" data-x="tabsplit:${esc(id)}" title="${esc(t("tabSplitT"))}">${t(TABS.pin===id?"tabSplitOff":"tabSplit")}</button>`;
+function tabOpen(id){let i=REAL.indexOfFile(id);if(i>=0&&REAL.nodes[i].kind==="cluster"){i=REAL.revealFile(id);REAL.setLinks(st.links);}if(i>=0){edFlush();openReal(i);}}
+function tabClose(id){const k=TABS.ids.indexOf(id);if(k<0)return;TABS.ids.splice(k,1);tabSave();const cur=REAL.nodes[curReal];
+  if(cur&&cur.row&&cur.row.id===id){const nx=TABS.ids[Math.min(k,TABS.ids.length-1)];if(nx)tabOpen(nx);else{edFlush();closeOv("rnode");}}else refreshNode();}
+function tabStep(d){const cur=REAL.nodes[curReal];if(!cur||!cur.row||TABS.ids.length<2)return;const k=TABS.ids.indexOf(cur.row.id);tabOpen(TABS.ids[(k+d+TABS.ids.length)%TABS.ids.length]);}
+function splitToggle(id){if(TABS.pin===id||!id){TABS.pin=null;closeOv("rnode2");refreshNode();return;}TABS.pin=id;if(open.has("rnode2"))fill("rnode2");else{openOv("rnode2");
+  const a=ovRoot.querySelector('.ov[data-m="rnode"]'),b=ovRoot.querySelector('.ov[data-m="rnode2"]');if(a&&b){b.style.top=a.offsetTop+"px";b.style.height=a.offsetHeight+"px";b.style.left=Math.max(90,a.offsetLeft-b.offsetWidth-12)+"px";}}refreshNode();}
+BODY.rnode2=()=>{const r=TABS.pin&&lib.rows.find(x=>x.id===TABS.pin);if(!r)return `<p class="hint">${t("tabPinGone")}</p>`;const B=bridge();let c=realContent.get(r.id);
+  if(!c&&B&&B.read){B.read(r.id).then(x=>{realContent.set(r.id,x);refreshOv("rnode2");}).catch(()=>{});}
+  return `<div class="tbar"><span class="typ">${t("tabSide")}</span><b style="font-size:13px;color:var(--white)">${esc(nm(r.name,"f"))}</b><span class="sp"></span><button class="btn sm" type="button" data-x="tabswap">${t("tabSwap")}</button></div>`
+    +(st.privacy?`<p class="hint">${t("privHidden")}</p>`:!c?`<p class="hint">…</p>`:`<div class="rcontent">${contentBody(c,realWl)}</div>`);};
+ovRoot.addEventListener("click",e=>{const tb=e.target.closest("[data-tab]");if(tb&&!e.target.closest("button")){e.stopPropagation();tabOpen(tb.dataset.tab);return;}
+  const b=e.target.closest("[data-x]");if(!b)return;const x=b.dataset.x;
+  if(x.startsWith("tabx:")){e.stopPropagation();tabClose(x.slice(5));}
+  else if(x.startsWith("tabsplit:")){e.stopPropagation();splitToggle(x.slice(9));}
+  else if(x==="tabswap"){e.stopPropagation();const cur=REAL.nodes[curReal],p=TABS.pin;if(!p)return;TABS.pin=cur&&cur.row?cur.row.id:null;if(!TABS.pin)closeOv("rnode2");else refreshOv("rnode2");tabOpen(p);}},true);
+ovRoot.addEventListener("auxclick",e=>{const tb=e.target.closest("[data-tab]");if(tb&&e.button===1){e.preventDefault();tabClose(tb.dataset.tab);}});
+addEventListener("keydown",e=>{if(!(e.ctrlKey||e.metaKey)||!open.has("rnode"))return;
+  if(e.key==="Tab"){e.preventDefault();tabStep(e.shiftKey?-1:1);}
+  else if(e.key.toLowerCase()==="w"&&ovRoot.querySelector('.ov.front[data-m="rnode"]')){const cur=REAL.nodes[curReal];if(cur&&cur.row){e.preventDefault();tabClose(cur.row.id);}}});
 BODY.rnode=()=>{const N=REAL.nodes[curReal];if(!N)return `<p class="hint">${t("noLinksYet")}</p>`;
-  const head=`<div class="tbar"><span class="typ">${t("k_"+N.kind)}</span><b style="font-size:13px;color:var(--white)">${esc(N.kind==="project"?nm(N.project,"p"):nm(N.row.name,"f"))}</b><span class="sp"></span><button class="btn sm" type="button" data-x="flyreal">${t("showInBrain")}</button></div>`;
+  const head=`<div class="tbar"><span class="typ">${t("k_"+N.kind)}</span><b style="font-size:13px;color:var(--white)">${esc(N.kind==="project"?nm(N.project,"p"):nm(N.row.name,"f"))}</b><span class="sp"></span>${N.row?bmBtn(N.row.id):""}<button class="btn sm" type="button" data-x="flyreal">${t("showInBrain")}</button></div>`;
   if(N.kind==="project"){const files=lib.rows.filter(r=>r.project===N.project);
     return head+(N.open?`<div class="btns" style="margin-top:0"><button class="btn sm" type="button" data-x="rclose">${t("clusterClose")}</button></div>`:"")+`<div class="sec">${t("libFiles")} · ${files.length}</div><div class="list">${files.slice(0,300).map(r=>`<div class="row" data-real="${esc(r.id)}" style="cursor:pointer"><span class="n">${esc(nm(r.name,"f"))}</span><span class="m">${esc(r.ext||"—")} · ${fmtB(r.size)}</span></div>`).join("")}</div>`;}
   const r=N.row,byId=new Map(lib.rows.map(x=>[x.id,x]));
@@ -743,7 +774,7 @@ BODY.rnode=()=>{const N=REAL.nodes[curReal];if(!N)return `<p class="hint">${t("n
   const out=L.filter(l=>l.from_id===r.id).map(l=>{const o=byId.get(l.to_id);return o?row(l,o):"";}).join("");
   const back=L.filter(l=>l.to_id===r.id).map(l=>{const o=byId.get(l.from_id);return o?row(l,o):"";}).join("");
   const links=(out?`<div class="sub">${t("linksOut")}</div><div class="list">${out}</div>`:"")+(back?`<div class="sub">${t("backlinksH")}</div><div class="list">${back}</div>`:"");
-  return head+contentBlock(r)+claudeTrace(r)+`<div class="sec">${t("mLinks")}</div>${realGraph(r,L,byId)}${links||`<p class="hint">${t("noLinksYet")}</p>`}${mentionsBlock(r)}<div class="sec">${t("fileInfo")}</div><div class="kv"><span>${t("k_"+N.kind)}</span><span>${esc((r.ext||"—").toUpperCase())} · ${fmtB(r.size)}</span>
+  return tabBar(r.id,byId)+head+contentBlock(r)+claudeTrace(r)+`<div class="sec">${t("mLinks")}</div>${realGraph(r,L,byId)}${links||`<p class="hint">${t("noLinksYet")}</p>`}${mentionsBlock(r)}<div class="sec">${t("fileInfo")}</div><div class="kv"><span>${t("k_"+N.kind)}</span><span>${esc((r.ext||"—").toUpperCase())} · ${fmtB(r.size)}</span>
    <span>${t("projectL")}</span><span>${esc(r.project?nm(r.project,"p"):t("noProject"))}${r.project&&r.project_origin==="auto"?` <small style="color:var(--silver)">(${t("projAuto")})</small>`:""}</span>
    <span>${t("loc")}</span><span class="mono">${st.privacy?"…":esc(r.lib_path)}</span><span>${t("src")}</span><span class="mono">${st.privacy?"…":esc(r.original_path)}</span>
    <span>${t("imported")}</span><span>${esc(new Date(r.imported_at).toLocaleString(lang==="de"?"de-DE":"en-US"))}</span><span>Status</span><span>${stPill(r.status)}</span></div>
@@ -819,7 +850,9 @@ const ED={id:null,text:"",base:null,dirty:false,status:"",at:null,view:"prev",th
 // never re-render the node panel under the user's typing (saves and file watching would reset the cursor)
 function refreshNode(){const a=document.activeElement;if(a&&a.id==="red")return;refreshOv("rnode");}
 function edOpen(r,c){if(ED.id===r.id){if(!ED.dirty&&ED.theirs===null&&c.hash&&c.hash!==ED.base){ED.text=c.text;ED.base=c.hash;}return;}edFlush();Object.assign(ED,{id:r.id,ren:false,text:c.text,base:c.hash,dirty:false,status:"",at:null,theirs:null,theirsHash:null,cmp:false,versions:null,showVer:false,ver:null,err:null});}
-function edStatus(){return ED.status==="saving"?t("edSaving"):ED.status==="saved"?tf("edSaved",{t:ED.at}):ED.status==="error"?tf("edError",{e:ED.err||"?"}):ED.dirty?t("edUnsaved"):"";}
+function wordCount(text){const b=String(text).replace(/^---\n[\s\S]*?\n---\n?/,"").replace(/%%[\s\S]*?%%/g,"");const w=b.match(/[\p{L}\p{N}][\p{L}\p{N}'’_-]*/gu);return {w:w?w.length:0,c:b.replace(/\s/g,"").length};}
+function edStatus(){const n=wordCount(ED.text),wc=tf("wordCount",{w:n.w.toLocaleString(),c:n.c.toLocaleString()});const st0=edStatus0();return st0?wc+" · "+st0:wc;}
+function edStatus0(){return ED.status==="saving"?t("edSaving"):ED.status==="saved"?tf("edSaved",{t:ED.at}):ED.status==="error"?tf("edError",{e:ED.err||"?"}):ED.dirty?t("edUnsaved"):"";}
 function editorBlock(r,c){edOpen(r,c);const B=bridge();
   if(!c.editable){const f=r.folder_id&&lib.folders.find(x=>x.id===r.folder_id);
     return `<div class="sec">${t("content")}<span class="ro">${t("readOnly")}</span></div>`+(r.ext==="md"?`<div class="tbar">${noteTools(c.text,false)}</div>${outlineBlock(c.text)}`:"")+(c.why==="readonly"&&f?`<div class="note-w">${esc(tf("edReadonly",{f:f.name}))}<div class="btns" style="margin-top:6px"><button class="btn sm" type="button" data-x="libedit:${esc(f.id)}:1">${t("edEnable")}</button></div></div>`:"")+(c.why==="session"?`<p class="hint">${t("edSessionRo")}</p>`:"")+`<div class="rcontent">${contentBody(c,realWl)}</div>`;}
@@ -828,7 +861,7 @@ function editorBlock(r,c){edOpen(r,c);const B=bridge();
   if(ED.theirs!==null){const D=lineDiff(ED.theirs,ED.text),cd=compactDiff(D,2);
     conflict=`<div class="note-w"><b>${t("edConflictT")}</b><br>${t("edConflictD")}<div class="btns" style="margin-top:6px"><button class="btn sm pri" type="button" data-x="edc:mine">${t("edKeepMine")}</button><button class="btn sm" type="button" data-x="edc:theirs">${t("edTakeTheirs")}</button><button class="btn sm" type="button" data-x="edc:cmp">${t(ED.cmp?"edHideCmp":"edCompare")}</button></div>
      ${ED.cmp?`<p class="hint" style="margin:6px 0 2px">${t("edCmpHint")}</p><div class="diff" style="max-height:240px">${cd.map(([o,l])=>o==="…"?`<div class="hd">… ${l} …</div>`:`<div class="${o==="+"?"add":o==="-"?"del":"ctx"}">${esc(l)}</div>`).join("")}</div>`:""}</div>`;}
-  const body=ED.view==="edit"&&!st.privacy?`<div class="acwrap"><textarea id="red" class="ned" spellcheck="false">${esc(ED.text)}</textarea><div class="ac" id="rac" hidden></div></div><div class="sub">${t("edLive")}</div><div class="prev" id="redprev">${noteHtml(ED.text,realWl)}</div>`
+  const body=ED.view==="edit"&&!st.privacy?(r.ext==="md"?`<div class="propsw">${propsBlock(ED.text,{t,esc,open:!!ED.propsOpen})}</div>`:"")+`<div class="acwrap"><textarea id="red" class="ned" spellcheck="false">${esc(ED.text)}</textarea><div class="ac" id="rac" hidden></div></div><div class="sub">${t("edLive")}</div><div class="prev" id="redprev">${noteHtml(ED.text,realWl)}</div>`
     :`<div class="rcontent">${contentBody({...c,text:ED.text},realWl)}</div>`;
   let ver="";
   if(ED.showVer){if(!ED.versions&&B&&B.versions){B.versions(r.id).then(v=>{ED.versions=v;refreshOv("rnode");});ver=`<p class="hint">…</p>`;}
@@ -840,7 +873,7 @@ let outlineOn=false,TPL=null;
 function noteTools(text,editing){const B=bridge();
   // loaded once; added to the open editor without re-rendering it (the cursor stays where it is)
   if(editing&&TPL===null&&B&&B.templates){TPL=[];B.templates().then(x=>{TPL=x;const f=document.querySelector('.ov[data-m="rnode"] [data-x="focus"]');if(x.length&&f&&document.getElementById("red")&&!document.getElementById("edtpl"))f.insertAdjacentHTML("afterend",tplSelect());}).catch(()=>{TPL=null;});}
-  return `<button class="btn sm${outlineOn?" on":""}" type="button" data-x="outline">${t("outline")}</button><button class="btn sm${document.body.classList.contains("focus")?" on":""}" type="button" data-x="focus">${t("focusMode")}</button>`
+  return `<button class="btn sm${outlineOn?" on":""}" type="button" data-x="outline">${t("outline")}</button><button class="btn sm${document.body.classList.contains("focus")?" on":""}" type="button" data-x="focus">${t("focusMode")}</button><button class="btn sm" type="button" data-x="notepdf" title="${esc(t("pdfT"))}">PDF</button>`
     +(editing&&TPL&&TPL.length?tplSelect():"");}
 const tplSelect=()=>`<select class="inp" id="edtpl" style="flex:0 0 auto;padding:3px 6px;font-size:11px"><option value="">${t("tplInsert")}</option>${TPL.map(x=>`<option value="${esc(x.id)}">${esc(x.name.replace(/\.md$/,""))}</option>`).join("")}</select>`;
 function outlineBlock(text){if(!outlineOn)return "";const H=mdHeadings(text||"");
@@ -880,7 +913,7 @@ function hydrate(root,m){if(!root)return;wireCanvas(root);
   const mers=root.querySelectorAll(".mermaid-box[data-mermaid]:not([data-done])");
   if(mers.length)(mermaidMod?Promise.resolve(mermaidMod):import("mermaid").then(x=>{mermaidMod=x.default||x;mermaidMod.initialize({startOnLoad:false,theme:"dark",securityLevel:"strict"});return mermaidMod;})).then(async M=>{for(const el of mers){el.dataset.done="1";const code=el.dataset.mermaid;
       try{let svg=mermaidCache.get(code);if(!svg){svg=(await M.render("nosmm"+(++mermaidN),code)).svg;mermaidCache.set(code,svg);}el.innerHTML=svg;}catch(e){el.insertAdjacentHTML("beforeend",`<p class="hint">${esc(t("mdMermaidErr"))}</p>`);}}}).catch(()=>{});
-  if(m!=="rnode"&&m!=="memory")return;
+  if(!["rnode","rnode2","memory","hover"].includes(m))return;
   const B=bridge();if(!B||!B.read)return;
   root.querySelectorAll(".embed[data-embed]:not([data-done])").forEach(el=>{el.dataset.done="1";if(el.closest(".embed-note .embed-note"))return;   // two levels deep at most
     const r=rowByName(el.dataset.embed);if(!r){el.classList.add("miss");return;}
@@ -1343,10 +1376,10 @@ const RENDER={
   if(s===0){b=`<p style="font-size:15px;color:var(--white);margin:0 0 12px">${t("w1")}</p><div class="feat">${["a","b","c"].map((k,n)=>`<div><span class="code">0${n+1}</span><b>${t("w1"+k+"h")}</b><span>${t("w1"+k)}</span></div>`).join("")}</div><div class="note-ok">${t("w1not")}</div>`;f=`<button class="btn" type="button" data-mx="close">${t("skip")}</button>`+nav(t("next"),"wnext");f=f.replace(/^(.*?)<span class="sp"><\/span>/,'$1<span class="sp"></span>');}
   const realW=!!monBridge(),wDiff=(P,path,demo)=>realW?(P?(P.error?`<p class="hint">${t(P.error==="noNode"?"monNoNode":P.error==="brokenBlock"?"ruleBroken":"monBadSettings")}</p>`:`<div class="kv"><span>${t("monFile")}</span><span class="mono">${esc(P.path)}</span></div>`+textDiffHtml(P.before,P.after,220)):`<p class="hint">…</p>`):diffHtml(path,demo);
   if(s===1){b=`<p>${t("w2")}</p><div class="fld"><input class="inp mono" value="${esc(realW&&lib.libDir?lib.libDir:"~/NEURAL OS/Library")}" readonly><button class="btn sm" type="button" data-mx="toastfolder">${t("change")}</button></div>`;f=nav(t("next"),"wnext");}
-  if(s===2){b=`<p>${t("w3")}</p><div class="choice">${[["vault","imp_vault"],["folder","imp_folder"],["later","later"]].map(([k,l])=>`<button type="button" data-mx="wimp:${k}" class="${ms.imp===k?"on":""}"><b>${t(l)}</b>${t(l+"_d")}</button>`).join("")}</div>`;f=nav(t("next"),"wnext");}
+  if(s===2){b=`<p>${t("w3")}</p><div class="choice">${[["vault","imp_vault"],["folder","imp_folder"],["example","imp_example"],["later","later"]].map(([k,l])=>`<button type="button" data-mx="wimp:${k}" class="${ms.imp===k?"on":""}"><b>${t(l)}</b>${t(l+"_d")}</button>`).join("")}</div>`;f=nav(t("next"),"wnext");}
   if(s===3){b=`<p>${t("w4")}</p>${wDiff(ms.hp,"~/.claude/settings.json",HOOKDIFF)}${realW?"":`<div class="note-w">${t("w_example")}</div>`}<p class="hint" style="margin:0">${t(realW?"wBackupReal":"backupNote")}</p>`;f=nav(t("optIn"),"whooks:1",t("optSkip"),"whooks:0");}
   if(s===4){b=`<p>${t("w5")}</p>${wDiff(ms.rp,"~/.claude/CLAUDE.md",RULEDIFF)}<p class="hint">${t(realW?"wBackupReal":"backupNote")}</p>`;f=nav(t("optIn"),"wrule:1",t("optSkip"),"wrule:0");}
-  if(s===5){b=`<p style="font-size:14px;color:var(--white)">${t("w6")}</p><div class="kv"><span>${t("libFolder")}</span><span>~/NEURAL OS/Library</span><span>${t("w3h")}</span><span>${t(ms.imp==="vault"?"imp_vault":ms.imp==="folder"?"imp_folder":"later")}</span><span>${t("w4h")}</span><span>${t(ms.hooks?"sumOn":"sumOff")}</span><span>${t("w5h")}</span><span>${t(ms.rule?"sumOn":"sumOff")}</span></div>`;f=nav(t("start"),"wdone");}
+  if(s===5){b=`<p style="font-size:14px;color:var(--white)">${t("w6")}</p><div class="kv"><span>${t("libFolder")}</span><span>~/NEURAL OS/Library</span><span>${t("w3h")}</span><span>${t(ms.imp==="vault"?"imp_vault":ms.imp==="folder"?"imp_folder":ms.imp==="example"?"imp_example":"later")}</span><span>${t("w4h")}</span><span>${t(ms.hooks?"sumOn":"sumOff")}</span><span>${t("w5h")}</span><span>${t(ms.rule?"sumOn":"sumOff")}</span></div>`;f=nav(t("start"),"wdone");}
   return mh(`0${s+1} / 06`,[t("w1h"),t("w2h"),t("w3h"),t("w4h"),t("w5h"),t("w6h")][s],dots)+`<div class="mb">${b}</div><div class="mf">${f}</div>`;},
  import:()=>{const big=ms.suggest?ms.suggest==="link":ms.n>5000||ms.bytes>1e9;return mh("IMP",t("imp_title")+" · "+(st.privacy?"…":ms.name))+`<div class="mb"><p style="margin:0;font-family:var(--f-data);font-size:12px;color:var(--white)">${tf("imp_sum",{n:fmtN(ms.n),s:fmtBytes(ms.bytes)})}</p>${ms.vault?`<div class="note-ok">${t("imp_vaultHint")}</div>`:""}
   <div class="choice"><button type="button" data-mx="imode:copy" class="${ms.mode==="copy"?"on":""}">${big?"":`<em>${t("recommended")}</em>`}<b>${t("mode_copy")}</b>${t("mode_copy_d")}</button><button type="button" data-mx="imode:link" class="${ms.mode==="link"?"on":""}">${big?`<em>${t("recommended")}</em>`:""}<b>${t("mode_link")}</b>${t("mode_link_d")}</button></div>
@@ -1387,6 +1420,7 @@ modal.addEventListener("click",e=>{if(e.target===modal&&ms&&ms.kind!=="welcome")
       refreshMonitor(monChanged);openOv("setup");
       if(imp==="vault"){const ps=await B.pick(true);if(ps.length)runRealLink(ps,ps.length===1?ps[0].split(/[\\/]/).pop():ps.length+" "+t("files"));}
       else if(imp==="folder"){const ps=await B.pick(true);if(ps.length)realImportDlg(ps);}
+      else if(imp==="example")tryExample();
     }catch(e){console.error(e);}})();return;}
   else if(a==="toastfolder"){toast(t("moveD"));return;}
   else if(a==="imode"){ms.mode=v;}else if(a==="iro"){ms.ro=v==="1";}
@@ -1501,6 +1535,116 @@ function startIndex(name,n){idx={name,n,done:0,paused:false,fin:false};idxRender
   const tm=setInterval(()=>{if(!idx){clearInterval(tm);return;}if(idx.paused)return;idx.done+=idx.n/45;act[0]=Math.max(act[0],.5);paint();dirty=true;
     if(idx.done>=idx.n){idx.done=idx.n;idx.fin=true;clearInterval(tm);evoLog.unshift({ty:"index",txt:tf("ev_index",{n:fmtN(idx.n)}),d:stamp()});refreshOv("evolution");idxRender();setTimeout(()=>{idx=null;idxRender();refreshOv("health");},2200);return;}
     idxRender();},140);}
+
+
+/* ---------- files (file explorer: linked folders as a tree; changes only where editing is on) ---------- */
+const filesBridge=()=>window.neuralOS&&window.neuralOS.files;
+function loadTree(){const F=filesBridge();if(!F)return;F.tree().then(tr=>{FT.tree=tr||[];refreshOv("files");}).catch(()=>{FT.tree=[];refreshOv("files");});}
+BODY.files=()=>{if(!FT.tree&&!FT.busy){FT.busy=true;loadTree();setTimeout(()=>FT.busy=false,500);}
+  return bmBlock()+filesBody({t,tf,esc,privacy:st.privacy,rows:lib.rows||[],curId:curReal>=0&&REAL.nodes[curReal]&&REAL.nodes[curReal].row?REAL.nodes[curReal].row.id:null});};
+const fsErr=R=>toast(t("fxErr_"+((R&&R.reason)||"failed")));
+function fsAfter(R,openId){if(!R||!R.ok){fsErr(R);return false;}if(openId)pendingOpen=openId;FT.tree=null;refreshLibrary(onLib);loadTree();return true;}
+function fsFocusRen(){const x=document.getElementById("fsren");if(x){x.focus();x.select();}}
+function fsCommitRen(x){const key=x.dataset.k,name=x.value.trim();FT.ren=null;if(!name){refreshOv("files");return;}
+  const [fid,rel]=splitKey(key),F=filesBridge(),B=bridge();const row=(lib.rows||[]).find(r=>r.folder_id===fid&&r.rel_path===rel);
+  const old=fsBase(rel),oldShown=row&&row.ext==="md"?old.replace(/\.md$/i,""):old;if(name===oldShown){refreshOv("files");return;}
+  if(row&&(row.ext==="md"||row.ext==="txt")&&B&&B.rename){edFlush();B.rename(row.id,name).then(R=>{if(!R.ok){fsErr(R);refreshOv("files");return;}if(ED.id===row.id)ED.id=null;realContent.clear();toast(tf("edRenamed",{n:R.name.replace(/\.(md|txt)$/i,""),u:R.updated}));fsAfter(R,row.id);});}
+  else if(row)F.moveFile(row.id,fsParent(rel),name).then(R=>{fsAfter(R)||refreshOv("files");});
+  else F.move(fid,rel,fsParent(rel),name).then(R=>{if(R&&R.ok){const o=fid+"|"+rel;if(FT.open.delete(o))FT.open.add(fid+"|"+R.rel);}fsAfter(R)||refreshOv("files");});}
+ovRoot.addEventListener("keydown",e=>{const x=e.target;if(!x||x.id!=="fsren")return;if(e.key==="Enter"){e.preventDefault();fsCommitRen(x);}else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();FT.ren=null;refreshOv("files");}});
+ovRoot.addEventListener("focusout",e=>{const x=e.target;if(x&&x.id==="fsren"&&FT.ren)fsCommitRen(x);});
+function fsAction(a,v){const F=filesBridge();if(!F)return false;const [fid,rel]=v?splitKey(v):["",""];
+  if(a==="fsopen"){if(rel==="")return true;FT.open.has(v)?FT.open.delete(v):FT.open.add(v);refreshOv("files");}
+  else if(a==="fsnew"){F.newNote(fid,rel,t("fxUntitled")).then(R=>{if(fsAfter(R,R&&R.id)){ED.view="edit";if(rel)FT.open.add(v);}});}
+  else if(a==="fsdir"){F.newFolder(fid,rel,t("fxNewFolderName")).then(R=>{if(R&&R.ok){if(rel)FT.open.add(v);FT.ren=fid+"|"+R.rel;}fsAfter(R);});}
+  else if(a==="fsren"){FT.ren=v;refreshOv("files");setTimeout(fsFocusRen,0);}
+  else if(a==="fstrash"){edFlush();F.trash(fid,rel).then(R=>{if(R&&R.ok){FT.undo={fid,rel,trash:R.trash};clearTimeout(FT.undoT);FT.undoT=setTimeout(()=>{FT.undo=null;refreshOv("files");},20000);}fsAfter(R);});}
+  else if(a==="fsundo"){const U=FT.undo;FT.undo=null;if(U)F.untrash(U.fid,U.trash,U.rel).then(R=>fsAfter(R));}
+  else if(a==="fsmore"){FT.more.add(v);refreshOv("files");}
+  else return false;return true;}
+ovRoot.addEventListener("click",e=>{const b=e.target.closest("[data-x]");if(!b||!b.closest('.ov[data-m="files"]'))return;const x=b.dataset.x,i=x.indexOf(":");
+  if(fsAction(i<0?x:x.slice(0,i),i<0?"":x.slice(i+1)))e.stopPropagation();},true);
+// drag and drop: a file or folder onto a folder moves it (same linked folder only)
+let fsDrag=null;
+ovRoot.addEventListener("dragstart",e=>{const r=e.target.closest&&e.target.closest('.ov[data-m="files"] [data-ff],.ov[data-m="files"] [data-fd]');if(!r)return;fsDrag=r.dataset.ff?{key:r.dataset.ff,id:r.dataset.id}:{key:r.dataset.fd};e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",fsDrag.key);}catch(_){}});
+ovRoot.addEventListener("dragend",()=>{fsDrag=null;if(FT.dropOn){FT.dropOn=null;refreshOv("files");}});
+const fsTarget=e=>{const d=e.target.closest&&e.target.closest('.ov[data-m="files"] [data-fd]');if(!d||!fsDrag)return null;const [f1,r1]=splitKey(fsDrag.key),[f2,r2]=splitKey(d.dataset.fd);
+  if(f1!==f2||r2===fsParent(r1)||r2===r1||r2.startsWith(r1+"/"))return null;return d;};
+ovRoot.addEventListener("dragover",e=>{const d=fsTarget(e);if(!d)return;e.preventDefault();e.dataTransfer.dropEffect="move";if(FT.dropOn!==d.dataset.fd){ovRoot.querySelectorAll(".ft.drop").forEach(n=>n.classList.remove("drop"));d.classList.add("drop");FT.dropOn=d.dataset.fd;}});
+ovRoot.addEventListener("drop",e=>{const d=fsTarget(e);if(!d)return;e.preventDefault();e.stopPropagation();const F=filesBridge(),[fid,rel]=splitKey(fsDrag.key),[,to]=splitKey(d.dataset.fd),D=fsDrag;fsDrag=null;FT.dropOn=null;
+  if(D.id)F.moveFile(D.id,to).then(R=>fsAfter(R));else F.move(fid,rel,to).then(R=>{if(R&&R.ok&&FT.open.delete(D.key))FT.open.add(fid+"|"+R.rel);if(fsAfter(R))FT.open.add(d.dataset.fd);});});
+{const B=bridge();if(B&&B.onChanged)B.onChanged(()=>{if(open.has("files")){FT.tree=null;loadTree();}});}
+
+/* ---------- images into notes: paste or drop on the editor; saved where Obsidian would put them, ![[name]] at the cursor ---------- */
+const ATT_EXT=/\.(png|jpe?g|gif|webp|svg|bmp|avif|pdf)$/i;
+const attStamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;};
+async function attachFiles(ta,files){const B=bridge();if(!B||!B.attach||!ED.id)return;const id=ED.id;let n=0;
+  for(const f of files){let name=f.name||"";if(!name||/^image\.(png|jpe?g|gif|webp)$/i.test(name))name=`Pasted image ${attStamp()}${n?" "+n:""}.${(f.type.split("/")[1]||"png").replace("jpeg","jpg").replace("svg+xml","svg")}`;
+    if(!ATT_EXT.test(name)){toast(t("attErr_type"));continue;}
+    const R=await B.attach(id,name,await f.arrayBuffer()).catch(()=>({ok:false,reason:"failed"}));
+    if(!R.ok){toast(t("attErr_"+(R.reason||"failed")));continue;}n++;
+    if(ED.id!==id)continue;ta.focus();const s=ta.selectionStart,before=ta.value.slice(0,s),lead=before&&!before.endsWith("\n")?"\n":"";
+    document.execCommand("insertText",false,`${lead}![[${R.name}]]\n`);}
+  if(n){toast(tf("attDone",{n}));refreshLibrary(()=>{onLib();const pv=document.getElementById("redprev");if(pv){pv.innerHTML=noteHtml(ED.text,realWl);hydrate(pv,"rnode");}});}}
+const onRed=e=>e.target&&e.target.id==="red";
+ovRoot.addEventListener("paste",e=>{if(!onRed(e))return;const fs=[...(e.clipboardData&&e.clipboardData.files||[])];if(!fs.length)return;e.preventDefault();attachFiles(e.target,fs);});
+for(const ev of ["dragenter","dragover"])ovRoot.addEventListener(ev,e=>{if(!onRed(e)||!e.dataTransfer||![...e.dataTransfer.types].includes("Files"))return;e.preventDefault();e.stopPropagation();e.dataTransfer.dropEffect="copy";});
+ovRoot.addEventListener("drop",e=>{if(!onRed(e)||!e.dataTransfer||!e.dataTransfer.files.length)return;e.preventDefault();e.stopPropagation();attachFiles(e.target,[...e.dataTransfer.files]);});
+
+/* ---------- hover preview of [[links]] (like Obsidian's page preview) ---------- */
+let hovEl=null,hovT=0,hovId=null;
+function hovHide(){clearTimeout(hovT);hovId=null;if(hovEl){hovEl.remove();hovEl=null;}}
+function hovShow(a,id){const r=lib.rows.find(x=>x.id===id),B=bridge();if(!r||!B||!B.read||st.privacy)return;
+  const put=c=>{if(hovId!==id)return;if(!hovEl){hovEl=document.createElement("div");hovEl.id="hov";hovEl.className="glass";document.body.appendChild(hovEl);hovEl.addEventListener("mouseleave",hovHide);}
+    hovEl.innerHTML=`<div class="hh">${esc(r.name.replace(/\.md$/i,""))}</div><div class="rcontent">${contentBody(c,realWl)}</div>`;hydrate(hovEl,"hover");
+    const b=a.getBoundingClientRect(),W=Math.min(420,innerWidth-24);hovEl.style.width=W+"px";hovEl.style.left=Math.max(12,Math.min(b.left,innerWidth-W-12))+"px";
+    const below=b.bottom+8,h=Math.min(340,innerHeight*.5);hovEl.style.top=(below+h<innerHeight?below:Math.max(12,b.top-h-8))+"px";};
+  const c=realContent.get(id);if(c)put(c);else B.read(id).then(x=>{realContent.set(id,x);put(x);}).catch(()=>{});}
+ovRoot.addEventListener("mouseover",e=>{const a=e.target.closest&&e.target.closest(".wl[data-real],.ft.f [data-real]");if(!a){return;}const id=a.dataset.real;if(id===hovId)return;
+  if(a.closest(".ft.f")&&!(e.ctrlKey||e.metaKey))return;   // in the file tree only with Ctrl/Cmd held, like Obsidian
+  clearTimeout(hovT);hovT=setTimeout(()=>{hovId=id;hovShow(a,id);},450);
+  a.addEventListener("mouseleave",ev=>{clearTimeout(hovT);if(hovEl&&ev.relatedTarget&&hovEl.contains(ev.relatedTarget))return;setTimeout(()=>{if(hovEl&&!hovEl.matches(":hover"))hovHide();},120);},{once:true});});
+addEventListener("pointerdown",e=>{if(hovEl&&!hovEl.contains(e.target))hovHide();},true);
+addEventListener("keydown",e=>{if(e.key==="Escape"&&hovEl)hovHide();});
+ovRoot.addEventListener("click",()=>{if(hovEl)hovHide();});
+/* ---------- bookmarks: starred notes, listed on top of Files (kept on this computer) ---------- */
+const BM={ids:[]};try{const x=JSON.parse(localStorage.getItem("nos-bookmarks")||"[]");if(Array.isArray(x))BM.ids=x.slice(0,200);}catch(e){}
+function bmSave(){try{localStorage.setItem("nos-bookmarks",JSON.stringify(BM.ids));}catch(e){}}
+function bmToggle(id){const k=BM.ids.indexOf(id);if(k>=0)BM.ids.splice(k,1);else BM.ids.unshift(id);bmSave();toast(t(k>=0?"bmOff":"bmOn"));refreshNode();refreshOv("files");}
+const bmBtn=id=>`<button class="btn sm${BM.ids.includes(id)?" on":""}" type="button" data-x="bm:${esc(id)}" title="${esc(t(BM.ids.includes(id)?"bmRemove":"bmAdd"))}" aria-pressed="${BM.ids.includes(id)}">${BM.ids.includes(id)?"★":"☆"}</button>`;
+function bmBlock(){const byId=new Map((lib.rows||[]).map(r=>[r.id,r])),rows=BM.ids.map(id=>byId.get(id)).filter(Boolean);if(!rows.length)return "";
+  return `<div class="sec">${t("bmT")}</div><div class="fstree">${rows.map(r=>`<div class="ft f" style="padding-left:6px"><span class="car">★</span><span class="fn" data-real="${esc(r.id)}">${esc(st.privacy?"…":r.name.replace(/\.md$/i,""))}</span><span class="fst"><button type="button" data-x="bm:${esc(r.id)}" title="${esc(t("bmRemove"))}">✕</button></span></div>`).join("")}</div><div class="sec">${t("fxTreeT")}</div>`;}
+ovRoot.addEventListener("click",e=>{const b=e.target.closest('[data-x^="bm:"]');if(!b)return;e.stopPropagation();bmToggle(b.dataset.x.slice(3));},true);
+
+/* ---------- properties editor (frontmatter as rows; ui/props.js) ---------- */
+function propsApply(P){const ta=document.getElementById("red");const text=serializeProps(P,parseProps(ED.text).body);if(text===ED.text)return;ED.text=text;if(ta)ta.value=text;ED.dirty=true;ED.status="";edPaintStatus();if(ED.theirs===null)edSchedule();
+  clearTimeout(ED.prevT);ED.prevT=setTimeout(()=>{const pv=document.getElementById("redprev");if(pv){pv.innerHTML=noteHtml(ED.text,realWl);hydrate(pv,"rnode");}},180);}
+function propsFromDom(){const P=parseProps(ED.text).props;document.querySelectorAll('.ov[data-m="rnode"] .props [data-pi]').forEach(x=>{const p=P[+x.dataset.pi];if(!p)return;
+  if(x.dataset.pf==="k")p.key=x.value;else p.value=Array.isArray(p.value)?x.value.split(",").map(s=>s.trim()).filter(Boolean):x.value;});return P;}
+ovRoot.addEventListener("input",e=>{if(e.target.closest&&e.target.closest(".props")&&e.target.dataset.pi!==undefined)propsApply(propsFromDom());});
+ovRoot.addEventListener("click",e=>{const b=e.target.closest('[data-x="props"],[data-x^="propdel:"],[data-x^="propadd"]');if(!b||!b.closest('.ov[data-m="rnode"]'))return;e.stopPropagation();const x=b.dataset.x;
+  if(x==="props"){ED.propsOpen=!ED.propsOpen;refreshOv("rnode");return;}
+  const P=propsFromDom();if(x.startsWith("propdel:"))P.splice(+x.slice(8),1);
+  else if(x==="propadd:tags"){if(!P.some(p=>p.key==="tags"))P.push({key:"tags",value:[]});else{toast(t("propsHasTags"));return;}}
+  else P.push({key:t("propsNewName")+(P.length?" "+(P.length+1):""),value:""});
+  propsApply(P);
+  refreshOv("rnode");},true);
+
+/* ---------- PDF export of the open note (main process prints it in a hidden window without scripts) ---------- */
+async function notePdf(){const N=REAL.nodes[curReal],B=bridge();if(!N||!N.row||!B||!B.pdf)return;const r=N.row;
+  const c=realContent.get(r.id),text=ED.id===r.id?ED.text:c&&c.kind==="text"?c.text:null;if(text===null){toast(t("pdfNo"));return;}
+  const P=parseProps(text),box=document.createElement("div");box.style.cssText="position:fixed;left:-99999px;top:0;width:800px";document.body.appendChild(box);
+  box.innerHTML=(P.props.length?`<div class="props-print">${P.props.map(p=>`<div><b>${esc(p.key)}:</b> ${esc(Array.isArray(p.value)?p.value.join(", "):String(p.value))}</div>`).join("")}</div>`:"")+renderMarkdown(P.body,{resolve:realWl,t});
+  hydrate(box,"rnode");toast(t("pdfWait"));
+  for(let k=0;k<30&&box.querySelector(".embed[data-embed]:not(.miss), .math[data-tex]:not([data-done])");k++)await new Promise(f=>setTimeout(f,100));
+  box.querySelectorAll("[data-real],[data-heading],[data-embed]").forEach(el=>{el.removeAttribute("data-real");});
+  const html=box.innerHTML;box.remove();
+  const R=await B.pdf(r.name,html).catch(()=>({ok:false,reason:"failed"}));if(R.ok)toast(t("pdfDone"));else if(R.reason!=="cancel")toast(t("pdfFail"));}
+ovRoot.addEventListener("click",e=>{const b=e.target.closest('[data-x="notepdf"]');if(!b)return;e.stopPropagation();notePdf();},true);
+
+// test mode: example vault in NEURAL OS's own data folder (main: library/example.ts)
+function tryExample(){const B=bridge();if(!B||!B.example)return;B.example(lang).then(R=>{toast(t(R&&R.created?"exCreated":"exThere"));FT.tree=null;refreshLibrary(onLib);openOv("files");}).catch(()=>toast(t("fxErr_failed")));}
+ovRoot.addEventListener("click",e=>{const b=e.target.closest('[data-x="tryexample"]');if(!b)return;e.stopPropagation();tryExample();},true);
 
 /* ---------- context menu (library rows and nodes in the brain) ---------- */
 let ctxEl=null;function ctxClose(){if(ctxEl){ctxEl.remove();ctxEl=null;}}

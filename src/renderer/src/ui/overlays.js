@@ -15,7 +15,7 @@ function loadMem(storage) {
  *   storage?: {getItem:(k:string)=>string|null, setItem:(k:string,v:string)=>void}}} o
  */
 export function createOverlays(o) {
-  const { root, max = 3, codeOf, titleOf, bodyOf, onChange = () => {}, onCreate = () => {}, onFill = () => {} } = o;
+  const { root, max = 3, leftSide = [], codeOf, titleOf, bodyOf, onChange = () => {}, onCreate = () => {}, onFill = () => {} } = o;
   const storage = o.storage || (() => { try { return window.localStorage; } catch (_) { return null; } })();
   /** @type {Map<string, HTMLElement>} */
   const open = new Map();
@@ -68,7 +68,8 @@ export function createOverlays(o) {
     if (open.size >= max) close(open.keys().next().value);
     const el = document.createElement("section"); el.className = "ov glass"; el.dataset.m = m;
     const w = Math.min(380, innerWidth - 32);
-    el.style.left = Math.max(16, innerWidth - w - 30 - (slot % 3) * 28) + "px"; el.style.top = 72 + (slot % 3) * 28 + "px"; slot++;
+    if (leftSide.includes(m) && innerWidth > WIDE) { el.style.left = "92px"; el.style.top = "72px"; }   // sidebars (files) sit beside the dock, so notes opened from them do not cover them
+    else { el.style.left = Math.max(16, innerWidth - w - 30 - (slot % 3) * 28) + "px"; el.style.top = 72 + (slot % 3) * 28 + "px"; slot++; }
     el.innerHTML = `<header><span class="code">${codeOf(m)}</span><h2></h2><button type="button" data-c="min" aria-label="Minimize">–</button><button type="button" data-c="close" aria-label="Close">×</button></header><div class="body"></div>`;
     root.appendChild(el); open.set(m, el); fill(m); front(el); onChange();
 

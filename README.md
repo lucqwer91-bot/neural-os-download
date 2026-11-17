@@ -2,7 +2,7 @@
 
 <h1 align="center">NEURAL OS</h1>
 <p align="center"><b>Das Langzeitgedächtnis deiner KI.</b><br>Deine Notizen als 3D-Gehirn, und du siehst live, was Claude Code damit macht.</p>
-<p align="center"><a href="../../releases/latest"><b>⬇ Kostenlos herunterladen (Windows / macOS)</b></a> · Open Source (MIT) · <a href="#english">English</a></p>
+<p align="center"><a href="../../releases/latest"><b>⬇ Kostenlos herunterladen (Windows / macOS)</b></a> · Open Source (MIT) · <b>Beta</b> · <a href="CHANGELOG.md">Änderungen</a> · <a href="#english">English</a></p>
 
 <p align="center"><img src="docs/img/demo.gif" width="720" alt="NEURAL OS mit Demodaten: das 3D-Gehirn dreht sich, rechts der Live-Monitor"><br><sub>Mit Demodaten (oben links als „Demo data“ gekennzeichnet).</sub></p>
 
@@ -18,6 +18,33 @@ NEURAL OS ist eine kostenlose, quelloffene Desktop-App für Windows und macOS.
 - **Claude erinnert sich:** Claude schlägt selbst in deinen Notizen und den letzten Sitzungen nach und nennt dabei die Quellen.
 - **Mehrere Geräte:** Das gleiche Gehirn auf PC und Mac, über deinen eigenen Cloud-Ordner (Google Drive, OneDrive, iCloud, Dropbox, MEGA).
 - **Für Roblox-Entwickler:** Claude kennt die Hausregeln deines Spiels (Remotes, Module, DataStores) und sieht, wer was benutzt, bevor es Code ändert.
+
+## Ehrlich gesagt: Beta
+
+- NEURAL OS ist neu und von einer Person **mit Claude Code gebaut** (KI-gestützt programmiert). Der ganze Code liegt hier offen, mit über 180 automatischen Tests, die bei jedem Push auf Windows, macOS und Linux laufen.
+- Es gibt noch kaum Nutzer und damit wenig Erfahrung aus dem Alltag. Probier es deshalb zuerst im **Testmodus** aus (siehe unten) und mach vor dem Verknüpfen deines echten Vaults ein Backup.
+- Die App ist noch nicht signiert. Wie du die Datei prüfst, steht unter [Installieren](#installieren).
+
+## Obsidian ersetzen?
+
+Für den Alltag mit einem Vault ist das meiste da. NEURAL OS liest und schreibt normale Markdown-Dateien. Dein Vault bleibt ein Obsidian-Vault, du kannst jederzeit zurück.
+
+| Da | Noch nicht |
+|---|---|
+| Dateibaum mit neuer Notiz und neuem Ordner, Umbenennen, Verschieben per Ziehen, Papierkorb (`.trash`) mit Rückgängig | Plugins (Dataview, Kanban, …) |
+| Editor mit Live-Vorschau, `[[`-Vervollständigung, Versionen, Konfliktschutz | Canvas und Bases **bearbeiten** (anzeigen geht) |
+| Tabs, geteilte Ansicht, Lesezeichen, Hover-Vorschau, Wortzahl | Themes, CSS-Snippets |
+| Eigenschaften-Editor, Bilder einfügen (landen im Anhang-Ordner aus `.obsidian/app.json`), PDF-Export | Handy-App |
+| Obsidian-Markdown (Callouts, Einbettungen, Mathe, Mermaid, Fußnoten), Aliase, Umbenennen mit Link-Korrektur, Backlinks, unverlinkte Erwähnungen | Sync-Dienst (du nutzt deinen eigenen Cloud-Ordner) |
+| Suche, Tags, Tagesnotizen, Vorlagen, Gliederung, lokaler Graph, Canvas und Bases anzeigen | |
+
+## Ausprobieren ohne Risiko (Testmodus)
+
+1. NEURAL OS starten. Im Einrichtungsschritt „Bring in your knowledge“ **„Try with an example vault“** wählen (oder später: Dateien → „Mit Beispiel-Vault ausprobieren“).
+2. Die Schritte „Claude Code monitoring“ und „Readiness rule“ mit **„Not now“** überspringen. Dann schreibt NEURAL OS nichts in deine Claude-Code-Dateien.
+3. Der Beispiel-Vault liegt im eigenen Datenordner von NEURAL OS. Deine echten Notizen werden nicht angefasst.
+
+Noch vorsichtiger: In der **Windows-Sandbox** (Windows Pro) oder einem neuen macOS-Benutzerkonto installieren. Dort sieht die App nichts von deinen Dateien.
 
 ## Was NEURAL OS liest und was nie
 
@@ -85,9 +112,11 @@ Fehler oder Ideen bitte als [Issue](../../issues) melden. Pull Requests sind wil
 <a id="english"></a>
 ## English
 
-NEURAL OS is a free, open-source (MIT) desktop app for Windows and macOS. It shows your notes (Obsidian vault, folders, PDFs, Word files, images) as a 3D brain, lets you edit notes with version history, and shows live which files Claude Code reads and changes, with before/after diffs. Claude can look up your notes and past sessions through a read-only local MCP server. The same brain can be shared across devices through your own cloud folder.
+NEURAL OS is a free, open-source (MIT) desktop app for Windows and macOS, **in beta and built with the help of Claude Code**. It shows your notes (Obsidian vault, folders, PDFs, Word files, images) as a 3D brain, lets you work with notes like in Obsidian (file tree, tabs, split view, properties, images, PDF export, version history), and shows live which files Claude Code reads and changes, with before/after diffs. Claude can look up your notes and past sessions through a read-only local MCP server. The same brain can be shared across devices through your own cloud folder.
 
 **Privacy, checkable in the code:** no internet connection (only `127.0.0.1`), no telemetry. From Claude Code only metadata is stored, never prompts or outputs (except the short `SESSION-NOTE:`/`LESSON:` lines Claude writes for the lesson book). Key and password files are never indexed, and key-like text is masked everywhere ([`secrets.ts`](src/main/library/secrets.ts)). Changes to Claude Code's files happen only after you consent, with a diff, a backup and one-click undo.
+
+To try it safely, pick "Try with an example vault" during setup and skip the Claude Code steps ("Not now"): nothing is written to your Claude Code files and your real notes are not touched. Changes per version: [CHANGELOG.md](CHANGELOG.md).
 
 Download from [Releases](../../releases/latest) (unsigned for now; compare the SHA-256 in the release notes) or build it yourself with `npm install && npm run build && npm start`.
 

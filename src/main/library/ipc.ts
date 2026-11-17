@@ -21,6 +21,10 @@ import { addFolder, applyPaths, listFolders, removeFolder, scanFolder, setFolder
 import { libraryHealth } from './health'
 import { agentBoard } from './agents'
 import { fresh } from './fresh'
+import { exportPdf } from './pdf'
+import { exampleVault } from './example'
+import { saveAttachment, ATTACH_MAX } from './attach'
+import { dirTree, movePath, moveFile, newFolder, newNote, restoreTrash, trashPath } from './fileops'
 import { requestDir, takeRequests, writeResult } from './requests'
 
 // IPC for the library (renderer <-> main). Channel names: "lib:*".
@@ -126,6 +130,16 @@ export function initLibrary(getWin: () => BrowserWindow | null): void {
     }
     if (out.folders) changed()
     return out
+  })
+  // test mode: example vault in NEURAL OS's own data folder, editing on (example.ts)
+  ipcMain.handle('lib:example', async (_e, lang: unknown) => {
+    const r = await job(async () => {
+      const x = await exampleVault(db!, data, lang === 'de' ? 'de' : 'en')
+      if (x.created && x.scan) { await afterScan(x.scan); const f = listFolders(db!).find((y) => y.id === x.id); if (f) startWatch(f) }
+      return x
+    })
+    changed()
+    return { ok: true, created: r.created }
   })
   ipcMain.handle('lib:link', (e, paths: unknown) => linkFolders(strings(paths), (seen) => e.sender.send('lib:progress', { done: seen, total: 0 })))
   // NEURAL_OS_LINK='[{"path":"/x","exclude":"Imports/"}]': link folders at start without the folder picker
@@ -244,6 +258,51 @@ export function initLibrary(getWin: () => BrowserWindow | null): void {
     if (typeof id !== 'string' || typeof name !== 'string') return { ok: false, reason: 'missing' }
     const r = await job(() => renameNote(db!, libDir, id, name))
     if (r.ok) { for (const x of new Set([id, ...r.changed])) void relink(x).catch(() => undefined); changed() }
+    return r
+  })
+  // file explorer (fileops.ts): only in linked folders with editing on; trash = <folder>/.trash, can be undone
+  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  ipcMain.handle('fs:tree', () => dirTree(db!))
+  ipcMain.handle('fs:newNote', async (_e, folderId: unknown, dir: unknown, name: unknown) => {
+    const r = await job(() => newNote(db!, str(folderId), str(dir), str(name) || 'Untitled'))
+    if (r.ok) changed()
+    return r
+  })
+  ipcMain.handle('fs:newFolder', async (_e, folderId: unknown, dir: unknown, name: unknown) => job(() => newFolder(db!, str(folderId), str(dir), str(name) || 'New folder')))
+  ipcMain.handle('fs:move', async (_e, folderId: unknown, rel: unknown, toDir: unknown, newName: unknown) => {
+    const r = await job(() => movePath(db!, str(folderId), str(rel), str(toDir), typeof newName === 'string' ? newName : undefined))
+    if (r.ok) changed()
+    return r
+  })
+  ipcMain.handle('fs:moveFile', async (_e, id: unknown, toDir: unknown, newName: unknown) => {
+    const r = await job(() => moveFile(db!, str(id), str(toDir), typeof newName === 'string' ? newName : undefined))
+    if (r.ok) changed()
+    return r
+  })
+  ipcMain.handle('fs:trash', async (_e, folderId: unknown, rel: unknown) => {
+    const r = await job(() => trashPath(db!, str(folderId), str(rel)))
+    if (r.ok) changed()
+    return r
+  })
+  // image pasted or dropped into a note: bytes from the renderer, written next to the note (attach.ts)
+  ipcMain.handle('lib:attach', async (_e, id: unknown, name: unknown, data: unknown) => {
+    const bytes = data instanceof Uint8Array ? data : data instanceof ArrayBuffer ? new Uint8Array(data) : null
+    if (!bytes || bytes.byteLength > ATTACH_MAX) return { ok: false, reason: 'size' }
+    const r = await job(() => saveAttachment(db!, libDir, str(id), str(name), bytes))
+    if (r.ok) changed()
+    return r
+  })
+  ipcMain.handle('lib:pdf', async (_e, name: unknown, html: unknown) => {
+    if (typeof html !== 'string' || html.length > 60 * 1024 * 1024) return { ok: false, reason: 'failed' }
+    return exportPdf(getWin(), str(name), html)
+  })
+  ipcMain.handle('fs:untrash', async (_e, folderId: unknown, trash: unknown, rel: unknown) => {
+    const r = await job(async () => {
+      const x = await restoreTrash(db!, str(folderId), str(trash), str(rel))
+      if (x.ok) await afterScan(await applyPaths(db!, str(folderId), [str(rel)]))
+      return x
+    })
+    if (r.ok) changed()
     return r
   })
   // daily note: open today's, or create it (library, or an editable vault with its own daily-note settings)

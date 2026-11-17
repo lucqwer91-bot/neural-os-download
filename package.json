@@ -1,6 +1,6 @@
 {
   "name": "neural-os",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "NEURAL OS: local knowledge workspace and live view of Claude Code activity",
   "main": "out/main/index.js",
