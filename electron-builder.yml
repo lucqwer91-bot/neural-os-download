@@ -1,5 +1,5 @@
 # Installers: Windows (.exe, installs per user, no admin needed) and macOS (.dmg, Intel + Apple Silicon).
-# Built on GitHub Actions (.github/workflows/package.yml). Not code-signed yet: Windows SmartScreen and
+# Built on GitHub Actions (.github/workflows/release.yml) for every tag v*. Not code-signed yet: Windows SmartScreen and
 # macOS Gatekeeper ask once (see README, "Install").
 appId: app.neuralos.desktop
 productName: NEURAL OS

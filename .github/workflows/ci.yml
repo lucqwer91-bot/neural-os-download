@@ -1,20 +1,15 @@
 name: CI
-# Every push: Linux only (cheapest Actions minutes). Windows and macOS on demand:
-# Actions → CI → Run workflow (macOS minutes count ten times on private repositories).
+# Every push and pull request: tests on Linux, Windows and macOS (free for public repositories).
 on:
   push:
+  pull_request:
   workflow_dispatch:
-    inputs:
-      all:
-        description: Also test on Windows and macOS
-        type: boolean
-        default: true
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.all && '["ubuntu-latest","windows-latest","macos-latest"]' || '["ubuntu-latest"]') }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

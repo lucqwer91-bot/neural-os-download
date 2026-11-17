@@ -42,7 +42,7 @@ Tipp: Verknüpfe nur Ordner, die Claude sehen darf. Einzelne Unterordner oder Da
    **macOS:** App in „Programme“ ziehen, beim ersten Mal **Rechtsklick → Öffnen**.
 4. NEURAL OS öffnen. Das **Tutorial** startet von selbst. Du wählst, was du willst, und es verknüpft deine Notizen, verbindet Claude Code und sucht passende Connectoren, jeweils mit einem Klick.
 
-Wer keiner fertigen Datei vertrauen will, baut die App selbst (siehe unten).
+Die Installer baut GitHub selbst aus genau diesem Code (Tab „Actions“), mit Herkunftsnachweis. Prüfen geht mit `gh attestation verify <Datei> --repo lucqwer91-bot/neural-os-download`. Wer keiner fertigen Datei vertrauen will, baut die App selbst (siehe unten).
 
 **Für die Claude-Funktionen brauchst du:** [Claude Code](https://claude.com/claude-code) (Kommandozeile oder Claude-Desktop-App) und [Node.js LTS](https://nodejs.org).
 
