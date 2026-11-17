@@ -78,7 +78,7 @@ Du musst Claude nichts erklären. Beim Einrichten von „Kontext für Claude“ 
 
 ## Fragen und Fehler
 
-Fehler oder Ideen bitte als [Issue](../../issues) melden. Pull Requests sind willkommen.
+Fehler oder Ideen bitte als [Issue](../../issues) melden. Pull Requests sind willkommen. Sicherheitsprobleme bitte privat melden, siehe [SECURITY.md](SECURITY.md). [Code signing policy](CODE_SIGNING_POLICY.md).
 
 ---
 
